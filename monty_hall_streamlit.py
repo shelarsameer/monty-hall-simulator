@@ -27,21 +27,34 @@ def create_door_image(door_num, state='closed', selected=False, opening=False):
     img = Image.new('RGB', (width, height), '#34495E')
     draw = ImageDraw.Draw(img)
     
-    # First draw what's behind the door
-    if state == 'car':
-        # Draw car
+    if state == 'closed' and not opening:
+        # Draw closed door
+        color = '#27AE60' if selected else '#8B4513'
+        # Door frame
+        draw.rectangle([15, 15, 185, 285], fill='#654321', outline='#463217', width=3)
+        # Door
+        draw.rectangle([20, 20, 180, 280], fill=color, outline='#654321', width=2)
+        # Decorative panels
+        draw.rectangle([35, 35, 165, 135], fill=color, outline='#654321', width=2)
+        draw.rectangle([35, 165, 165, 265], fill=color, outline='#654321', width=2)
+        # Door handle
+        draw.ellipse([150, 140, 170, 160], fill='#FFD700')
+        # Door number
+        draw.text((100, 280), f"Door {door_num + 1}", fill='white', anchor="ms")
+    elif state == 'car' or (state == 'closed' and opening):
+        # Draw car or background for opening animation
         draw.rectangle([0, 0, width, height], fill='#2C3E50')  # Background
-        # Car body
-        draw.rectangle([40, 120, 160, 170], fill='#E74C3C')
-        draw.polygon([(60, 120), (140, 120), (130, 80), (70, 80)], fill='#E74C3C')
-        # Windows
-        draw.polygon([(75, 85), (125, 85), (115, 115), (85, 115)], fill='#85C1E9')
-        # Wheels
-        draw.ellipse([50, 150, 80, 180], fill='#2C3E50', outline='white', width=2)
-        draw.ellipse([120, 150, 150, 180], fill='#2C3E50', outline='white', width=2)
-        draw.text((100, 280), "CAR!", fill='white', anchor="ms")
-    elif state == 'goat' or opening:
-        # Draw goat
+        if state == 'car':
+            # Car body
+            draw.rectangle([40, 120, 160, 170], fill='#E74C3C')
+            draw.polygon([(60, 120), (140, 120), (130, 80), (70, 80)], fill='#E74C3C')
+            # Windows
+            draw.polygon([(75, 85), (125, 85), (115, 115), (85, 115)], fill='#85C1E9')
+            # Wheels
+            draw.ellipse([50, 150, 80, 180], fill='#2C3E50', outline='white', width=2)
+            draw.ellipse([120, 150, 150, 180], fill='#2C3E50', outline='white', width=2)
+            draw.text((100, 280), "CAR!", fill='white', anchor="ms")
+    else:  # goat or opening to goat
         draw.rectangle([0, 0, width, height], fill='#27AE60')  # Green background
         # Goat body
         draw.ellipse([60, 120, 140, 180], fill='#95A5A6')
@@ -51,28 +64,17 @@ def create_door_image(door_num, state='closed', selected=False, opening=False):
         draw.rectangle([115, 170, 130, 220], fill='#95A5A6')
         draw.text((100, 280), "GOAT", fill='white', anchor="ms")
     
-    # Then draw the door (if closed or partially open)
-    if state == 'closed' or opening:
-        # Door frame always visible
-        draw.rectangle([15, 15, 185, 285], fill='#654321', outline='#463217', width=3)
+    # Draw opening door animation if needed
+    if opening:
+        door_width = int(180 * 0.3)  # Show door mostly open
+        door_color = '#27AE60' if selected else '#8B4513'
         
-        if opening:
-            # Draw partially open door
-            door_width = int(180 * 0.3)  # Door is 30% visible (70% open)
-            door_color = '#27AE60' if selected else '#8B4513'
-            # Draw the door on the left side
-            draw.rectangle([20, 20, 20 + door_width, 280], fill=door_color, outline='#654321', width=2)
-            # Draw handle if door is wide enough
-            if door_width > 30:
-                draw.ellipse([door_width - 30, 140, door_width - 10, 160], fill='#FFD700')
-        else:
-            # Draw fully closed door
-            door_color = '#27AE60' if selected else '#8B4513'
-            draw.rectangle([20, 20, 180, 280], fill=door_color, outline='#654321', width=2)
-            draw.rectangle([35, 35, 165, 135], fill=door_color, outline='#654321', width=2)
-            draw.rectangle([35, 165, 165, 265], fill=door_color, outline='#654321', width=2)
-            draw.ellipse([150, 140, 170, 160], fill='#FFD700')  # Handle
-            draw.text((100, 280), f"Door {door_num + 1}", fill='white', anchor="ms")
+        # Door frame
+        draw.rectangle([15, 15, 185, 285], fill='#654321', outline='#463217', width=3)
+        # Animated door
+        draw.rectangle([20, 20, 20 + door_width, 280], fill=door_color, outline='#654321', width=2)
+        if door_width > 30:  # Only draw handle if door is wide enough
+            draw.ellipse([door_width - 30, 140, door_width - 10, 160], fill='#FFD700')
     
     return img
 
@@ -95,22 +97,18 @@ def reveal_goat():
     st.session_state.revealed_door = random.choice(possible_reveals)
     st.session_state.game_state = 'deciding'
 
-def process_choice(final_choice, is_switch):
+def process_choice(final_choice):
     """Process the player's final choice and update statistics"""
-    # Update the chosen door to the final choice
-    st.session_state.chosen_door = final_choice
-    
-    if is_switch:
-        # Player switched
-        st.session_state.stats_switch['games'] += 1
-        if final_choice == st.session_state.car_position:
-            st.session_state.stats_switch['wins'] += 1
-    else:
+    if final_choice == st.session_state.chosen_door:
         # Player stayed
         st.session_state.stats_stay['games'] += 1
         if final_choice == st.session_state.car_position:
             st.session_state.stats_stay['wins'] += 1
-    
+    else:
+        # Player switched
+        st.session_state.stats_switch['games'] += 1
+        if final_choice == st.session_state.car_position:
+            st.session_state.stats_switch['wins'] += 1
     st.session_state.game_state = 'finished'
 
 def create_monty_hall(position=None):
@@ -288,17 +286,14 @@ def main():
                     
                     if strategy != 'Choose manually':
                         if strategy == 'Always stay':
-                            process_choice(i, False)  # Stay with initial choice
+                            process_choice(i)
                         else:  # Always switch
-                            # Find the remaining unopened door
                             final_choice = [x for x in range(3) 
                                           if x != i and x != st.session_state.revealed_door][0]
-                            process_choice(final_choice, True)  # Switch to the other door
+                            process_choice(final_choice)
                 
                 elif st.session_state.game_state == 'deciding':
-                    # For manual choice, determine if player switched
-                    is_switch = (i != st.session_state.chosen_door)
-                    process_choice(i, is_switch)
+                    process_choice(i)  # Process final choice and reveal all doors
             
             st.image(door_img)
 
@@ -340,31 +335,27 @@ def main():
     with col2:
         if st.button("Auto Simulate (100 games)"):
             for _ in range(100):
-                # Setup game
+                # Simulate staying
                 car_pos = random.randint(0, 2)
                 first_choice = random.randint(0, 2)
-                
-                # Find possible goat doors to reveal
-                possible_reveals = [i for i in range(3) 
-                                  if i != first_choice and i != car_pos]
-                if not possible_reveals:
-                    possible_reveals = [i for i in range(3) 
-                                      if i != first_choice]
-                    if car_pos in possible_reveals:
-                        possible_reveals.remove(car_pos)
-                
-                revealed_door = random.choice(possible_reveals)
-                
-                # Simulate staying
+                # For staying, just check if initial choice was correct
                 st.session_state.stats_stay['games'] += 1
                 if first_choice == car_pos:
                     st.session_state.stats_stay['wins'] += 1
                 
                 # Simulate switching
-                st.session_state.stats_switch['games'] += 1
-                # Switch to the door that's neither the first choice nor the revealed door
+                car_pos = random.randint(0, 2)
+                first_choice = random.randint(0, 2)
+                # Get doors we could reveal (not chosen and not car)
+                possible_reveals = [i for i in range(3) 
+                                  if i != first_choice and i != car_pos]
+                # Host reveals one of these doors
+                revealed_door = random.choice(possible_reveals)
+                # Player switches to the remaining door
                 final_choice = [i for i in range(3) 
-                              if i != first_choice and i != revealed_door][0]
+                               if i != first_choice and i != revealed_door][0]
+                
+                st.session_state.stats_switch['games'] += 1
                 if final_choice == car_pos:
                     st.session_state.stats_switch['wins'] += 1
 
@@ -376,62 +367,37 @@ def main():
             </audio>
         """, unsafe_allow_html=True)
 
-    # Replace the line graph with a donut chart
+    # Add a plot showing win probabilities over time
     if st.session_state.stats_stay['games'] > 0 or st.session_state.stats_switch['games'] > 0:
-        st.header("Win Percentages")
+        st.header("Win Probability Over Time")
         
         fig = go.Figure()
         
-        # Calculate percentages
-        stay_pct = (st.session_state.stats_stay['wins'] / st.session_state.stats_stay['games'] * 100 
-                   if st.session_state.stats_stay['games'] > 0 else 0)
-        switch_pct = (st.session_state.stats_switch['wins'] / st.session_state.stats_switch['games'] * 100 
-                     if st.session_state.stats_switch['games'] > 0 else 0)
-
-        # Add donut charts side by side
-        fig = go.Figure(data=[
-            # Stay strategy donut
-            go.Pie(
-                values=[stay_pct, 100-stay_pct],
-                labels=['Wins', 'Losses'],
-                name="Stay Strategy",
-                domain={'x': [0, 0.45]},
-                hole=0.7,
-                marker_colors=['#2ecc71', '#e74c3c'],
-                title="Stay Strategy"
-            ),
-            # Switch strategy donut
-            go.Pie(
-                values=[switch_pct, 100-switch_pct],
-                labels=['Wins', 'Losses'],
-                name="Switch Strategy",
-                domain={'x': [0.55, 1]},
-                hole=0.7,
-                marker_colors=['#2ecc71', '#e74c3c'],
-                title="Switch Strategy"
-            )
-        ])
+        # Add stay strategy line
+        stay_prob = (st.session_state.stats_stay['wins'] / st.session_state.stats_stay['games'] * 100 
+                    if st.session_state.stats_stay['games'] > 0 else 0)
+        fig.add_trace(go.Scatter(x=[0, st.session_state.stats_stay['games']], 
+                                y=[0, stay_prob],
+                                name="Stay Strategy",
+                                line=dict(color="#1f77b4")))
         
-        # Update layout
+        # Add switch strategy line
+        switch_prob = (st.session_state.stats_switch['wins'] / st.session_state.stats_switch['games'] * 100 
+                      if st.session_state.stats_switch['games'] > 0 else 0)
+        fig.add_trace(go.Scatter(x=[0, st.session_state.stats_switch['games']], 
+                                y=[0, switch_prob],
+                                name="Switch Strategy",
+                                line=dict(color="#ff7f0e")))
+        
+        # Add theoretical probabilities
+        fig.add_hline(y=33.33, line_dash="dash", annotation_text="1/3 probability")
+        fig.add_hline(y=66.67, line_dash="dash", annotation_text="2/3 probability")
+        
         fig.update_layout(
-            showlegend=True,
-            annotations=[
-                # Stay percentage in center
-                dict(
-                    text=f'{stay_pct:.1f}%',
-                    x=0.225, y=0.5,
-                    font_size=24,
-                    showarrow=False
-                ),
-                # Switch percentage in center
-                dict(
-                    text=f'{switch_pct:.1f}%',
-                    x=0.775, y=0.5,
-                    font_size=24,
-                    showarrow=False
-                )
-            ],
-            height=400
+            title="Win Probability Over Number of Games",
+            xaxis_title="Number of Games",
+            yaxis_title="Win Probability (%)",
+            yaxis_range=[0, 100]
         )
         
         st.plotly_chart(fig, use_container_width=True)
